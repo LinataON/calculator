@@ -8,6 +8,7 @@ class Btn {
   static const String subtract = "-";
   static const String calculate = "=";
   static const String dot = ".";
+  static const String convert = "conv";
 
   static const String n0 = "0";
   static const String n1 = "1";
@@ -39,6 +40,7 @@ class Btn {
     add,
     n0,
     dot,
+    convert,
     calculate,
   ];
 }
