@@ -1,7 +1,8 @@
-
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'button_values.dart';
+import 'history_screen.dart'; // Import the History Screen
 
 class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({super.key});
@@ -11,60 +12,81 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
-  String number1 = ""; // . 0-9
-  String operand = ""; // + = * /
-  String number2 = ""; // . 0-9
+  String number1 = "";
+  String operand = "";
+  String number2 = "";
+
+  SharedPreferences? _prefs; // SharedPreferences instance
+
+  @override
+  void initState() {
+    super.initState();
+    _initPrefs();
+  }
+
+  // Initialize SharedPreferences instance
+  void _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screenSize=MediaQuery.of(context).size;
-    return  Scaffold(
+    final screenSize = MediaQuery.of(context).size;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Calculator'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => HistoryScreen()),
+              );
+            },
+            icon: Icon(Icons.history),
+          ),
+        ],
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-          //output
             Expanded(
-                child:SingleChildScrollView(
-                  reverse: true,
-                  child: Container(
-                    //color: Colors.blueGrey,
-                    alignment: Alignment.bottomRight,
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      "$number1$operand$number2".isEmpty
-                      ? "0"
-                      : "$number1$operand$number2",
-                      style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.end,
+              child: SingleChildScrollView(
+                reverse: true,
+                child: Container(
+                  alignment: Alignment.bottomRight,
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    "$number1$operand$number2".isEmpty
+                        ? "0"
+                        : "$number1$operand$number2",
+                    style: const TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
                     ),
+                    textAlign: TextAlign.end,
                   ),
-                ), ),
-
-          //buttons
+                ),
+              ),
+            ),
             Wrap(
               children: Btn.buttonValues
                   .map(
-                      (value) => SizedBox(
-                        //width: value == Btn.n0
-                          //? screenSize.width/2
-                          //: (screenSize.width/4),
-                          width: screenSize.width/4,
-                          height: screenSize.width/5,
-                          child: buildButton(value)
-                      ),
-                  )
+                    (value) => SizedBox(
+                  width: screenSize.width / 4,
+                  height: screenSize.width / 5,
+                  child: buildButton(value),
+                ),
+              )
                   .toList(),
-            )
-
-        ],),
+            ),
+          ],
+        ),
       ),
     );
   }
-//buttons design
+
   Widget buildButton(value) {
     return Padding(
       padding: const EdgeInsets.all(4.0),
@@ -80,53 +102,51 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         child: InkWell(
           onTap: () => onBtnTap(value),
           child: Center(
-              child: Text(
-                  value,
+            child: Text(
+              value,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
-                color: Colors.black54
+                color: Colors.black54,
               ),
-              ),
+            ),
           ),
         ),
       ),
     );
   }
-  // ################
-  void onBtnTap(String value){
-    if(value==Btn.del){
+
+  void onBtnTap(String value) {
+    if (value == Btn.del) {
       delete();
       return;
     }
-    if(value==Btn.clr){
+    if (value == Btn.clr) {
       clearAll();
       return;
     }
-    if(value==Btn.per){
+    if (value == Btn.per) {
       convertToPercentage();
       return;
     }
-    if(value==Btn.calculate){
+    if (value == Btn.calculate) {
       calculate();
       return;
     }
-
     appendValue(value);
   }
 
-  // calculates the result
-  void calculate(){
-    if(number1.isEmpty) return;
-    if(operand.isEmpty) return;
-    if(number2.isEmpty) return;
+  void calculate() {
+    if (number1.isEmpty) return;
+    if (operand.isEmpty) return;
+    if (number2.isEmpty) return;
 
     final double num1 = double.parse(number1);
     final double num2 = double.parse(number2);
 
     var result = 0.0;
 
-    switch (operand){
+    switch (operand) {
       case Btn.add:
         result = num1 + num2;
         break;
@@ -145,23 +165,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {
       number1 = "$result";
 
-      if(number1.endsWith(".0")){
-        number1 = number1.substring(0, number1.length -2);
+      if (number1.endsWith(".0")) {
+        number1 = number1.substring(0, number1.length - 2);
         operand = "";
         number2 = "";
       }
     });
 
+    // Store the calculation in history
+    _storeHistory("$num1 $operand $num2 = $result");
   }
 
-  // convert to percentage
-  void convertToPercentage(){
-    if(number1.isNotEmpty&&operand.isNotEmpty&&number2.isNotEmpty){
-      //calculate before converting to percentage
+  void _storeHistory(String calculation) async {
+    if (_prefs != null) {
+      final history = _prefs!.getStringList('history') ?? [];
+      history.add('$calculation - ${DateTime.now().toString()}');
+      await _prefs!.setStringList('history', history);
+    }
+  }
+
+  void convertToPercentage() {
+    if (number1.isNotEmpty && operand.isNotEmpty && number2.isNotEmpty) {
       calculate();
     }
-    if(operand.isNotEmpty){
-      // can not be converted
+    if (operand.isNotEmpty) {
       return;
     }
     final number = double.parse(number1);
@@ -172,8 +199,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
-// clears all
-  void clearAll(){
+  void clearAll() {
     setState(() {
       number1 = "";
       operand = "";
@@ -181,33 +207,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
-// delete one from the end
-  void delete(){
-    if(number2.isNotEmpty){
+  void delete() {
+    if (number2.isNotEmpty) {
       number2 = number2.substring(0, number2.length - 1);
-    }else if(operand.isNotEmpty){
+    } else if (operand.isNotEmpty) {
       operand = "";
-    }else if(number1.isNotEmpty){
+    } else if (number1.isNotEmpty) {
       number1 = number1.substring(0, number1.length - 1);
     }
     setState(() {});
   }
-  void appendValue(String value){
 
-    if(value!=Btn.dot&&int.tryParse(value)==null){
-      if(operand.isNotEmpty&&number2.isNotEmpty){
+  void appendValue(String value) {
+    if (value != Btn.dot && int.tryParse(value) == null) {
+      if (operand.isNotEmpty && number2.isNotEmpty) {
         calculate();
       }
       operand = value;
-    }else if(number1.isEmpty ||operand.isEmpty){
-      if(value==Btn.dot && number1.contains(Btn.dot))return;
-      if(value==Btn.dot && (number1.isEmpty || number1==Btn.n0)){
+    } else if (number1.isEmpty || operand.isEmpty) {
+      if (value == Btn.dot && number1.contains(Btn.dot)) return;
+      if (value == Btn.dot && (number1.isEmpty || number1 == Btn.n0)) {
         value = "0.";
       }
       number1 += value;
-    }else if(number2.isEmpty ||operand.isNotEmpty){
-      if(value==Btn.dot && number2.contains(Btn.dot))return;
-      if(value==Btn.dot && (number2.isEmpty || number2==Btn.n0)){
+    } else if (number2.isEmpty || operand.isNotEmpty) {
+      if (value == Btn.dot && number2.contains(Btn.dot)) return;
+      if (value == Btn.dot && (number2.isEmpty || number2 == Btn.n0)) {
         value = "0.";
       }
       number2 += value;
@@ -215,8 +240,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {});
   }
 
-  // ################
-  Color getBtnColor(value){
+  Color getBtnColor(value) {
     return [Btn.del, Btn.clr].contains(value)
         ? Colors.yellow.shade200
         : [
@@ -226,9 +250,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       Btn.subtract,
       Btn.divide,
       Btn.calculate,
-
     ].contains(value)
         ? Colors.orange.shade200
-        :Colors.blueGrey;
+        : Colors.blueGrey;
   }
 }
