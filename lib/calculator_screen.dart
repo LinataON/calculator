@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:math_expressions/math_expressions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'button_values.dart';
 import 'history_screen.dart'; // Import the History Screen
 
@@ -16,18 +17,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String operand = "";
   String number2 = "";
 
-  SharedPreferences? _prefs; // SharedPreferences instance
-
-  @override
-  void initState() {
-    super.initState();
-    _initPrefs();
-  }
-
-  // Initialize SharedPreferences instance
-  void _initPrefs() async {
-    _prefs = await SharedPreferences.getInstance();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +76,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
+
   Widget buildButton(value) {
     return Padding(
       padding: const EdgeInsets.all(4.0),
@@ -136,6 +126,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     appendValue(value);
   }
 
+
+
   void calculate() {
     if (number1.isEmpty) return;
     if (operand.isEmpty) return;
@@ -173,16 +165,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
 
     // Store the calculation in history
-    _storeHistory("$num1 $operand $num2 = $result");
+    //_storeHistory("$num1 $operand $num2 = $result");
+    addToHistory("$num1 $operand $num2 = $result");
+  }
+  void addToHistory(String expression) async {
+    await FirebaseFirestore.instance.collection('history').add({
+      'expression': expression,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
-  void _storeHistory(String calculation) async {
-    if (_prefs != null) {
-      final history = _prefs!.getStringList('history') ?? [];
-      history.add('$calculation - ${DateTime.now().toString()}');
-      await _prefs!.setStringList('history', history);
-    }
-  }
 
   void convertToPercentage() {
     if (number1.isNotEmpty && operand.isNotEmpty && number2.isNotEmpty) {
